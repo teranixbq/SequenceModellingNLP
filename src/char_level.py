@@ -27,14 +27,7 @@ class CharCNN(nn.Module):
             kernel_sizes = [3, 5]
 
         self.pooling_type = pooling_type
-        self.sequence_length = sequence_length
-
-        self.embedding = nn.Embedding(
-            char_vocab_size,
-            char_embed_dim,
-            padding_idx=0,
-        )
-
+        self.embedding = nn.Embedding(char_vocab_size, char_embed_dim, padding_idx=0)
         self.convs = nn.ModuleList([
             nn.Conv1d(
                 in_channels=char_embed_dim,
@@ -44,19 +37,14 @@ class CharCNN(nn.Module):
             )
             for kernel_size in kernel_sizes
         ])
-
         self.adaptive_pool = nn.AdaptiveMaxPool1d(adaptive_output_size)
 
         if pooling_type == "adaptive":
             fc_input_dim = len(kernel_sizes) * num_filters * adaptive_output_size
         elif pooling_type == "none":
-            conv_output_lengths = [
-                _conv1d_output_length(sequence_length, kernel_size)
-                for kernel_size in kernel_sizes
-            ]
             fc_input_dim = sum(
-                num_filters * output_length
-                for output_length in conv_output_lengths
+                num_filters * _conv1d_output_length(sequence_length, kernel_size)
+                for kernel_size in kernel_sizes
             )
         else:
             fc_input_dim = len(kernel_sizes) * num_filters
@@ -65,40 +53,23 @@ class CharCNN(nn.Module):
         self.fc = nn.Linear(fc_input_dim, num_classes)
 
     def forward(self, x):
-        # x: (batch_size, char_sequence_length)
-
-        x = self.embedding(x)
-        # x: (batch_size, char_sequence_length, char_embed_dim)
-
-        x = x.transpose(1, 2)
-        # x: (batch_size, char_embed_dim, char_sequence_length)
-
+        x = self.embedding(x).transpose(1, 2)
         conv_results = []
 
         for conv in self.convs:
             conv_out = F.relu(conv(x))
 
             if self.pooling_type == "max":
-                pooled = F.max_pool1d(
-                    conv_out,
-                    kernel_size=conv_out.shape[2],
-                )
+                pooled = F.max_pool1d(conv_out, kernel_size=conv_out.shape[2])
                 pooled = pooled.squeeze(2)
-
             elif self.pooling_type == "avg":
-                pooled = F.avg_pool1d(
-                    conv_out,
-                    kernel_size=conv_out.shape[2],
-                )
+                pooled = F.avg_pool1d(conv_out, kernel_size=conv_out.shape[2])
                 pooled = pooled.squeeze(2)
-
             elif self.pooling_type == "adaptive":
                 pooled = self.adaptive_pool(conv_out)
                 pooled = pooled.reshape(pooled.size(0), -1)
-
             elif self.pooling_type == "none":
                 pooled = conv_out.reshape(conv_out.size(0), -1)
-
             else:
                 raise ValueError(
                     "pooling_type harus 'max', 'avg', 'adaptive', atau 'none'"
@@ -108,9 +79,8 @@ class CharCNN(nn.Module):
 
         x = torch.cat(conv_results, dim=1)
         x = self.dropout(x)
-        logits = self.fc(x)
 
-        return logits
+        return self.fc(x)
 
 
 class HierarchicalCharCNN(nn.Module):
@@ -132,16 +102,10 @@ class HierarchicalCharCNN(nn.Module):
             kernel_sizes = [3, 5, 7]
 
         self.pooling_type = pooling_type
-
-        self.embedding = nn.Embedding(
-            char_vocab_size,
-            char_embed_dim,
-            padding_idx=0,
-        )
-
+        self.embedding = nn.Embedding(char_vocab_size, char_embed_dim, padding_idx=0)
         self.convs = nn.ModuleList()
-        in_channels = char_embed_dim
 
+        in_channels = char_embed_dim
         for kernel_size in kernel_sizes:
             self.convs.append(
                 nn.Conv1d(
@@ -160,10 +124,7 @@ class HierarchicalCharCNN(nn.Module):
         elif pooling_type == "none":
             output_length = sequence_length
             for kernel_size in kernel_sizes:
-                output_length = _conv1d_output_length(
-                    output_length,
-                    kernel_size,
-                )
+                output_length = _conv1d_output_length(output_length, kernel_size)
             fc_input_dim = num_filters * output_length
         else:
             fc_input_dim = num_filters
@@ -172,34 +133,25 @@ class HierarchicalCharCNN(nn.Module):
         self.fc = nn.Linear(fc_input_dim, num_classes)
 
     def forward(self, x):
-        # x: (batch_size, char_sequence_length)
-
-        x = self.embedding(x)
-        x = x.transpose(1, 2)
-        # x: (batch_size, char_embed_dim, char_sequence_length)
+        x = self.embedding(x).transpose(1, 2)
 
         for conv in self.convs:
             x = F.relu(conv(x))
 
         if self.pooling_type == "max":
             x = F.max_pool1d(x, kernel_size=x.shape[2]).squeeze(2)
-
         elif self.pooling_type == "avg":
             x = F.avg_pool1d(x, kernel_size=x.shape[2]).squeeze(2)
-
         elif self.pooling_type == "adaptive":
             x = self.adaptive_pool(x)
             x = x.reshape(x.size(0), -1)
-
         elif self.pooling_type == "none":
             x = x.reshape(x.size(0), -1)
-
         else:
             raise ValueError(
                 "pooling_type harus 'max', 'avg', 'adaptive', atau 'none'"
             )
 
         x = self.dropout(x)
-        logits = self.fc(x)
 
-        return logits
+        return self.fc(x)
