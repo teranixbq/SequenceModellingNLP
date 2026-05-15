@@ -97,8 +97,6 @@ Model terbaik secara keseluruhan adalah **Word-level CNN dengan Average Pooling 
 
 ## 5. Final Summary
 
-Secara keseluruhan, **Word-level CNN** memberikan performa terbaik pada dataset IMDB karena review film umumnya memiliki struktur kata yang cukup normal. **Character-level CNN** lebih fleksibel untuk menangani slang, typo, singkatan, dan rare text, tetapi hasilnya tidak selalu lebih stabil dibanding Word CNN.
-
 Model terbaik akhir adalah:
 
 | Best Model | Pooling Type | Kernel Sizes | Accuracy | F1-score |
