@@ -9,6 +9,7 @@ Repository ini berisi implementasi:
   - Average Pooling
   - Adaptive Pooling
   - Without Pooling
+ - Char CNN vs Word CNN dalam memahami slang, typo, singkatan, rare text
 
 Dataset yang digunakan:
 - [IMDB Dataset of 50K Movie Reviews](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews)
